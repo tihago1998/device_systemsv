@@ -34,3 +34,18 @@ def get_user(
 def create_user(user: UserCreate, response: Response):
     set_headers(response)
     return user_service.create_user(user.model_dump())
+
+from app.schemas.user_schema import UserCreate, UserResponse, UserPatch
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+def update_user(user_id: int, user: UserCreate, response: Response):
+    set_headers(response)
+    return user_service.update_user_full(user_id, user.model_dump())
+
+
+@router.patch("/{user_id}", response_model=UserResponse)
+def patch_user(user_id: int, user: UserPatch, response: Response):
+    set_headers(response)
+    fields = user.model_dump(exclude_unset=True)
+    return user_service.update_user_partial(user_id, fields)    
