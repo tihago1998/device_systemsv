@@ -44,3 +44,8 @@ def update_user_partial(user_id: int, fields: dict) -> dict:
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
     user.update(fields)
     return user
+
+def delete_user(user_id: int) -> None:
+    """Elimina un usuario existente. Lanza 404 si no existe."""
+    user = get_user_by_id(user_id)  # lanza 404 si no existe
+    fake_db.remove(user)

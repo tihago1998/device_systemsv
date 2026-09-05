@@ -48,4 +48,13 @@ def update_user(user_id: int, user: UserCreate, response: Response):
 def patch_user(user_id: int, user: UserPatch, response: Response):
     set_headers(response)
     fields = user.model_dump(exclude_unset=True)
-    return user_service.update_user_partial(user_id, fields)    
+    return user_service.update_user_partial(user_id, fields)  
+
+from fastapi import status
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_user(user_id: int, response: Response):
+    set_headers(response)
+    user_service.delete_user(user_id)
+    return None 
