@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, Path, Response
+from fastapi import APIRouter, HTTPException, Query, Path, Response, Depends, status
 from typing import List, Optional
-from app.schemas.user_schema import UserCreate, UserResponse
+from app.schemas.user_schema import UserCreate, UserResponse, UserPatch
 from app.services import user_service
+from app.dependencies.user_dependencies import get_user_or_404
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -22,20 +23,15 @@ def list_users(
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(
-    response: Response,
-    user_id: int = Path(..., gt=0, description="ID del usuario a consultar"),
-):
+def get_user(response: Response, user: dict = Depends(get_user_or_404)):
     set_headers(response)
-    return user_service.get_user_by_id(user_id)
+    return user
 
 
 @router.post("/", response_model=UserResponse, status_code=201)
 def create_user(user: UserCreate, response: Response):
     set_headers(response)
     return user_service.create_user(user.model_dump())
-
-from app.schemas.user_schema import UserCreate, UserResponse, UserPatch
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -48,13 +44,11 @@ def update_user(user_id: int, user: UserCreate, response: Response):
 def patch_user(user_id: int, user: UserPatch, response: Response):
     set_headers(response)
     fields = user.model_dump(exclude_unset=True)
-    return user_service.update_user_partial(user_id, fields)  
-
-from fastapi import status
+    return user_service.update_user_partial(user_id, fields)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_user(user_id: int, response: Response):
     set_headers(response)
     user_service.delete_user(user_id)
-    return None 
+    return None
