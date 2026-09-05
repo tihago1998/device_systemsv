@@ -1,24 +1,27 @@
-from fastapi import FastAPI, Request
-from app.routes import user_routes
+from fastapi import FastAPI, Response
+from app.routes.user_routes import router as user_router
 
 app = FastAPI(
-    title="device_systems",
+    title="device_systems API",
     description="API REST para la gestión de usuarios del sistema device_systems",
-    version="1.0",
+    version="2.0.0",
+    contact={
+        "name": "Santiago Varela Peña",
+        "email": "santiago@example.com",
+    },
 )
+
+app.include_router(user_router)
 
 
 @app.middleware("http")
-async def add_custom_headers(request: Request, call_next):
-    response = await call_next(request)
+async def agregar_cabeceras(request, call_next):
+    response: Response = await call_next(request)
     response.headers["X-App-Name"] = "device_systems"
-    response.headers["X-API-Version"] = "1.0"
+    response.headers["X-API-Version"] = "2.0.0"
     return response
 
 
-app.include_router(user_routes.router)
-
-
-@app.get("/")
+@app.get("/", tags=["Root"], summary="Endpoint raíz", description="Verifica que la API esté en funcionamiento.")
 def root():
-    return {"message": "Bienvenido a device_systems API"}
+    return {"mensaje": "Bienvenido a device_systems API"}
