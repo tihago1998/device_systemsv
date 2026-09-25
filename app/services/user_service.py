@@ -2,6 +2,12 @@ from fastapi import HTTPException
 from app.data.users_db import fake_db, get_next_id
 
 
+def _validar_email_unico(email: str, excluir_id: int | None = None) -> None:
+    """Lanza 400 si el correo ya pertenece a otro usuario."""
+    if any(u["email"] == email and u["id"] != excluir_id for u in fake_db):
+        raise HTTPException(status_code=400, detail="El correo ya está registrado")
+
+
 def list_users(role: str | None = None, is_active: bool | None = None) -> list[dict]:
     result = fake_db
     if role is not None:
@@ -11,41 +17,31 @@ def list_users(role: str | None = None, is_active: bool | None = None) -> list[d
     return result
 
 
-def get_user_by_id(user_id: int) -> dict:
-    user = next((u for u in fake_db if u["id"] == user_id), None)
-    if user is None:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return user
-
-
 def create_user(user_data: dict) -> dict:
-    if any(u["email"] == user_data["email"] for u in fake_db):
-        raise HTTPException(status_code=400, detail="El correo ya está registrado")
+    _validar_email_unico(user_data["email"])
     new_user = dict(user_data)
     new_user["id"] = get_next_id()
     fake_db.append(new_user)
     return new_user
 
-def update_user_full(user_id: int, user_data: dict) -> dict:
+
+def update_user_full(user: dict, user_data: dict) -> dict:
     """PUT: reemplaza completamente los datos del usuario."""
-    user = get_user_by_id(user_id)  # lanza 404 si no existe
-    if any(u["email"] == user_data["email"] and u["id"] != user_id for u in fake_db):
-        raise HTTPException(status_code=400, detail="El correo ya está registrado")
+    _validar_email_unico(user_data["email"], excluir_id=user["id"])
     user.update(user_data)
     return user
 
 
-def update_user_partial(user_id: int, fields: dict) -> dict:
+def update_user_partial(user: dict, fields: dict) -> dict:
     """PATCH: actualiza solo los campos enviados."""
     if not fields:
         raise HTTPException(status_code=400, detail="No se enviaron campos para actualizar")
-    user = get_user_by_id(user_id)  # lanza 404 si no existe
-    if "email" in fields and any(u["email"] == fields["email"] and u["id"] != user_id for u in fake_db):
-        raise HTTPException(status_code=400, detail="El correo ya está registrado")
+    if "email" in fields:
+        _validar_email_unico(fields["email"], excluir_id=user["id"])
     user.update(fields)
     return user
 
-def delete_user(user_id: int) -> None:
-    """Elimina un usuario existente. Lanza 404 si no existe."""
-    user = get_user_by_id(user_id)  # lanza 404 si no existe
+
+def delete_user(user: dict) -> None:
+    """Elimina un usuario existente."""
     fake_db.remove(user)

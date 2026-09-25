@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Response
+from fastapi import Depends, FastAPI, Response
 from app.routes.user_routes import router as user_router
+from app.dependencies.user_dependencies import get_api_info
 
 app = FastAPI(
     title="device_systems API",
@@ -25,3 +26,14 @@ async def agregar_cabeceras(request, call_next):
 @app.get("/", tags=["Root"], summary="Endpoint raíz", description="Verifica que la API esté en funcionamiento.")
 def root():
     return {"mensaje": "Bienvenido a device_systems API"}
+
+
+@app.get(
+    "/info",
+    tags=["Root"],
+    summary="Información de la API",
+    description="Devuelve la configuración general de la API, obtenida mediante la dependencia get_api_info.",
+    response_description="Nombre y versión de la API.",
+)
+def api_info(info: dict = Depends(get_api_info)):
+    return info
