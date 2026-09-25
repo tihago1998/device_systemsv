@@ -2,18 +2,28 @@
 
 API REST para la gestión de usuarios del sistema **device_systems**, desarrollada con **FastAPI**.
 
-Proyecto desarrollado para las actividades **GA1-220501096-01-AA1-EV07** y su evolución **GA1-220501096-01-AA1-EV08** (FastAPI Intermedio) del programa ADSO - SENA.
+Proyecto desarrollado para las actividades del programa ADSO - SENA:
+
+| Actividad                          | Versión | Contenido                                                         |
+| ---------------------------------- | ------- | ----------------------------------------------------------------- |
+| GA1-220501096-01-AA1-EV07          | 1.0.0   | FastAPI básico: GET, POST y modelos Pydantic                      |
+| GA1-220501096-01-AA1-EV08          | 2.0.0   | CRUD completo, manejo de errores, Swagger/OpenAPI y `Depends()`   |
+| GA1-220501096-01-AA1-EV09          | 3.0.0   | Persistencia en base de datos con SQLAlchemy y SQLite             |
 
 ## Descripción
 
-`device_systems` es una API REST que permite administrar usuarios (crear, consultar, actualizar y eliminar), aplicando validaciones con Pydantic, parámetros de ruta y consulta, modelos de respuesta, cabeceras HTTP personalizadas, manejo de errores estructurado e inyección de dependencias con `Depends()`.
+`device_systems` es una API REST que permite administrar usuarios (crear, consultar, filtrar, ordenar, actualizar y eliminar). Desde la versión 3.0.0 los usuarios ya no se guardan en una lista en memoria sino en una **base de datos SQLite** (`device_systems.db`) mediante el ORM **SQLAlchemy**, por lo que los datos se conservan aunque el servidor se reinicie.
+
+La API aplica validaciones con Pydantic, constraints en el modelo de base de datos, parámetros de ruta y consulta, modelos de respuesta, cabeceras HTTP personalizadas, manejo de errores con `HTTPException` e inyección de dependencias con `Depends()`.
 
 ## Tecnologías utilizadas
 
 - Python 3.14
 - FastAPI
 - Uvicorn
-- Pydantic v2
+- Pydantic v2 (+ email-validator)
+- SQLAlchemy 2
+- SQLite
 
 ## Instalación de dependencias
 
@@ -34,34 +44,80 @@ La API queda disponible en `http://localhost:8000`, con documentación interacti
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+Al iniciar, la aplicación crea automáticamente el archivo `device_systems.db` y la tabla `users` si todavía no existen (`Base.metadata.create_all` en `app/main.py`). El archivo `.db` no se sube al repositorio (está en `.gitignore`).
+
 ## Estructura del proyecto
 
 ```
 device_systemsv/
 │── app/
 │   │── main.py
-│   │── routes/
-│   │   └── user_routes.py
+│   │── database/
+│   │   └── connection.py
+│   │── models/
+│   │   └── user_model.py
 │   │── schemas/
 │   │   └── user_schema.py
+│   │── routes/
+│   │   └── user_routes.py
 │   │── services/
 │   │   └── user_service.py
 │   │── dependencies/
+│   │   │── database_dependency.py
 │   │   └── user_dependencies.py
-│   │── data/
-│   │   └── users_db.py
 │── images/            (capturas de las pruebas)
 │── requirements.txt
 │── README.md
 ```
 
-| Carpeta        | Responsabilidad                                      |
-| -------------- | ---------------------------------------------------- |
-| `routes`       | Definición de endpoints                              |
-| `schemas`      | Modelos Pydantic de entrada y salida                 |
-| `services`     | Lógica de negocio                                    |
-| `dependencies` | Funciones reutilizables inyectadas con `Depends()`   |
-| `data`         | Simulación de base de datos en memoria               |
+| Carpeta        | Responsabilidad                                                          |
+| -------------- | ------------------------------------------------------------------------ |
+| `database`     | Conexión a la base de datos: engine, `SessionLocal` y `Base`             |
+| `models`       | Modelos SQLAlchemy: cómo se guardan los datos (tablas y columnas)        |
+| `schemas`      | Modelos Pydantic: qué datos entran y salen de la API                     |
+| `routes`       | Definición de endpoints                                                  |
+| `services`     | Lógica de negocio y operaciones CRUD sobre la base de datos              |
+| `dependencies` | Funciones reutilizables inyectadas con `Depends()` (sesión de BD, usuario, rol) |
+
+## Base de datos con SQLAlchemy
+
+### Conexión (`app/database/connection.py`)
+
+- `DATABASE_URL = "sqlite:///./device_systems.db"`: base de datos SQLite en la raíz del proyecto.
+- `engine`: objeto que se conecta a la base de datos.
+- `SessionLocal`: fábrica de sesiones; cada petición abre su propia sesión.
+- `Base`: clase base de la que heredan los modelos.
+- `get_session()`: crea una sesión nueva.
+
+La dependencia `get_db()` de `app/dependencies/database_dependency.py` usa `yield` para entregar la sesión al endpoint y cerrarla siempre al terminar la petición, incluso si ocurre un error.
+
+### Modelo `User` (`app/models/user_model.py`) → tabla `users`
+
+| Campo        | Tipo          | Restricción                                        |
+| ------------ | ------------- | -------------------------------------------------- |
+| `id`         | Integer       | Primary Key, índice                                |
+| `name`       | String(100)   | `nullable=False`                                   |
+| `email`      | String(120)   | `unique=True`, `nullable=False`, índice            |
+| `role`       | String(20)    | `nullable=False`, `CHECK role IN ('admin', 'support', 'user')` |
+| `is_active`  | Boolean       | `nullable=False`, por defecto `True`               |
+| `created_at` | DateTime      | `nullable=False`, por defecto la fecha actual (UTC) |
+
+### Modelo SQLAlchemy vs. schema Pydantic
+
+| Modelo SQLAlchemy (`User`)                         | Schemas Pydantic (`UserCreate`, `UserUpdate`, `UserPatch`, `UserResponse`) |
+| -------------------------------------------------- | -------------------------------------------------------------------------- |
+| Define cómo se **guardan** los datos en la tabla   | Define qué datos **entran y salen** de la API                              |
+| Constraints de base de datos (`unique`, `nullable`, `CHECK`) | Validaciones de entrada (mínimo 3 caracteres, formato de email, rol permitido) |
+| Incluye `id` y `created_at`, que genera el sistema | `UserCreate`/`UserUpdate` no los reciben; `UserResponse` sí los devuelve   |
+
+| Schema         | Uso                          | Campos                                                         |
+| -------------- | ---------------------------- | -------------------------------------------------------------- |
+| `UserCreate`   | POST (crear)                 | `name`, `email`, `role` obligatorios; `is_active` opcional (True) |
+| `UserUpdate`   | PUT (actualización completa) | `name`, `email`, `role` e `is_active`, todos obligatorios      |
+| `UserPatch`    | PATCH (actualización parcial)| Todos opcionales                                               |
+| `UserResponse` | Respuesta                    | `id`, `name`, `email`, `role`, `is_active`, `created_at`       |
+
+`UserResponse` usa `model_config = ConfigDict(from_attributes=True)` para construirse directamente desde el objeto SQLAlchemy.
 
 ## Tabla de endpoints
 
@@ -75,7 +131,16 @@ device_systemsv/
 | Eliminar usuario    | DELETE | `/users/{user_id}` | 204 No Content / 404       |
 | Información API     | GET    | `/info`            | 200 OK                     |
 
-Filtros disponibles en `GET /users/`: `?role=admin|support|user` y `?is_active=true|false` (se pueden combinar).
+Parámetros de consulta de `GET /users/` (se pueden combinar):
+
+| Parámetro   | Valores                         | Por defecto | Ejemplo                                  |
+| ----------- | ------------------------------- | ----------- | ---------------------------------------- |
+| `role`      | `admin`, `support`, `user`      | —           | `/users/?role=support`                   |
+| `is_active` | `true`, `false`                 | —           | `/users/?is_active=true`                 |
+| `order_by`  | `id`, `name`, `created_at`      | `id`        | `/users/?order_by=name`                  |
+| `order`     | `asc`, `desc`                   | `asc`       | `/users/?order_by=created_at&order=desc` |
+| `skip`      | entero ≥ 0                      | `0`         | `/users/?skip=10`                        |
+| `limit`     | entero entre 1 y 100            | `100`       | `/users/?limit=5`                        |
 
 ## Ejemplos de peticiones y respuestas
 
@@ -97,8 +162,9 @@ Respuesta:
   "name": "Carlos Ruiz",
   "email": "carlos@device.com",
   "role": "user",
+  "id": 3,
   "is_active": true,
-  "id": 3
+  "created_at": "2026-09-25T23:04:04.745210"
 }
 ```
 
@@ -120,8 +186,9 @@ Respuesta:
   "name": "Luis Pérez",
   "email": "luis2@device.com",
   "role": "support",
+  "id": 2,
   "is_active": true,
-  "id": 2
+  "created_at": "2026-09-25T23:04:04.719399"
 }
 ```
 
@@ -140,8 +207,9 @@ Respuesta:
   "name": "Ana Torres",
   "email": "ana@device.com",
   "role": "support",
+  "id": 1,
   "is_active": true,
-  "id": 1
+  "created_at": "2026-09-25T23:04:04.700822"
 }
 ```
 
@@ -174,16 +242,17 @@ Respuesta:
 
 ## Uso de Depends()
 
-Las dependencias están en `app/dependencies/user_dependencies.py` y se inyectan en las rutas con `Depends()`:
+Las dependencias están en `app/dependencies/` y se inyectan en las rutas con `Depends()`:
 
-| Dependencia               | Dónde se usa                                              | Qué hace                                                        |
-| ------------------------- | --------------------------------------------------------- | --------------------------------------------------------------- |
-| `get_user_or_404`         | `GET`, `PUT`, `PATCH` y `DELETE` de `/users/{user_id}`    | Busca el usuario por ID y lanza `404` si no existe              |
-| `validar_rol`             | `GET /users/` (filtro `role`)                             | Lanza `400` si el rol no es `admin`, `support` o `user`         |
-| `get_api_info`            | `GET /info`                                               | Entrega la configuración general de la API (nombre y versión)   |
-| `verificar_autenticacion` | Disponible para proteger rutas                            | Simula autenticación con la cabecera `x-token: secreto123`      |
+| Dependencia               | Archivo                  | Dónde se usa                                           | Qué hace                                                            |
+| ------------------------- | ------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------- |
+| `get_db`                  | `database_dependency.py` | Todos los endpoints de `/users`                        | Abre una sesión de base de datos por petición y la cierra al final  |
+| `get_user_or_404`         | `user_dependencies.py`   | `GET`, `PUT`, `PATCH` y `DELETE` de `/users/{user_id}` | Busca el usuario en la base de datos y lanza `404` si no existe     |
+| `validar_rol`             | `user_dependencies.py`   | `GET /users/` (filtro `role`)                          | Lanza `400` si el rol no es `admin`, `support` o `user`             |
+| `get_api_info`            | `user_dependencies.py`   | `GET /info`                                            | Entrega la configuración general de la API (nombre, versión y BD)   |
+| `verificar_autenticacion` | `user_dependencies.py`   | Disponible para proteger rutas                         | Simula autenticación con la cabecera `x-token: secreto123`          |
 
-Gracias a `get_user_or_404`, la búsqueda del usuario y el error `404` se escriben una sola vez y se reutilizan en los cuatro endpoints que reciben `user_id`. Así las rutas quedan cortas y los servicios reciben directamente el usuario ya validado.
+Las dependencias también pueden depender de otras: `get_user_or_404` recibe la sesión de `get_db` para consultar el usuario. Así, la búsqueda del usuario y el error `404` se escriben una sola vez y se reutilizan en los cuatro endpoints que reciben `user_id`, y los servicios reciben directamente el usuario ya validado.
 
 ## Manejo de errores
 
@@ -192,6 +261,7 @@ Todos los errores de negocio se manejan con `HTTPException`, devolviendo respues
 | Situación                         | Código | Mensaje                                         |
 | --------------------------------- | ------ | ----------------------------------------------- |
 | Usuario no encontrado             | 404    | `Usuario no encontrado`                         |
+| Actualización de usuario inexistente (PUT/PATCH) | 404 | `Usuario no encontrado`          |
 | Eliminación de usuario inexistente| 404    | `Usuario no encontrado`                         |
 | Correo electrónico duplicado      | 400    | `El correo ya está registrado`                  |
 | Rol no permitido (filtro)         | 400    | `Rol no permitido. Debe ser uno de: ...`        |
@@ -199,7 +269,29 @@ Todos los errores de negocio se manejan con `HTTPException`, devolviendo respues
 
 Los errores de validación de datos (`422`) son generados automáticamente por Pydantic a partir de las reglas definidas en los modelos: longitud mínima del nombre, formato de email y valores permitidos de rol al crear o actualizar. En PATCH, los campos enviados como `null` se ignoran, por lo que un cuerpo como `{"name": null}` se trata como una actualización sin datos (`400`).
 
-## Evidencia de pruebas
+El correo duplicado se controla en dos niveles: el servicio consulta primero si el email ya existe (`get_user_by_email`) y, como respaldo, si la base de datos rechaza el registro por el constraint `unique` (`IntegrityError`), se hace `rollback` y se responde igualmente `400`. El rol también está protegido en la base de datos con un `CHECK`, además de la validación de Pydantic.
+
+## Pruebas funcionales (EV09)
+
+Pruebas mínimas de la guía, ejecutadas sobre una base de datos nueva con tres usuarios de ejemplo (Ana, Luis y Beatriz):
+
+| #  | Prueba                                   | Petición                                  | Resultado                                   |
+| -- | ---------------------------------------- | ----------------------------------------- | ------------------------------------------- |
+| 1  | Crear un usuario válido                  | `POST /users/`                            | `201 Created`, con `id` y `created_at`      |
+| 2  | Crear usuario con email repetido         | `POST /users/`                            | `400` — `El correo ya está registrado`      |
+| 3  | Listar usuarios                          | `GET /users/`                             | `200 OK`                                    |
+| 4  | Consultar usuario por ID                 | `GET /users/1`                            | `200 OK`                                    |
+| 5  | Consultar usuario inexistente            | `GET /users/999`                          | `404` — `Usuario no encontrado`             |
+| 6  | Filtrar usuarios por rol                 | `GET /users/?role=support`                | `200 OK`, solo usuarios `support`           |
+| 7  | Filtrar usuarios activos                 | `GET /users/?is_active=true`              | `200 OK`, solo usuarios activos             |
+| 8  | Actualizar completo con PUT              | `PUT /users/2`                            | `200 OK`                                    |
+| 9  | Actualizar parcialmente con PATCH        | `PATCH /users/1` `{"role": "support"}`    | `200 OK`                                    |
+| 10 | Eliminar usuario                         | `DELETE /users/3`                         | `204 No Content`                            |
+| 11 | Validar que el eliminado ya no exista    | `GET /users/3`                            | `404` — `Usuario no encontrado`             |
+
+Pruebas adicionales de error: datos inválidos (`422`), PUT sin `is_active` (`422`), PUT/PATCH/DELETE de usuario inexistente (`404`), PUT/PATCH con email de otro usuario (`400`), PATCH vacío (`400`), rol no permitido en el filtro (`400`) y `order_by` no permitido (`422`). Después de las pruebas, los datos siguen guardados en `device_systems.db`.
+
+## Evidencia de pruebas (EV08)
 
 ### Endpoints disponibles en Swagger UI
 
@@ -233,7 +325,7 @@ Los errores de validación de datos (`422`) son generados automáticamente por P
 - PUT de usuario inexistente → 404
   ![PUT 404](images/12_put_usuario_inexistente_404.png)
 
-## Reflexión personal
+## Reflexión personal (EV08)
 
 Desarrollar `device_systems` con FastAPI me permitió entender por qué este framework se ha vuelto tan popular para construir APIs REST en Python. La validación automática con Pydantic fue lo que más me sorprendió: solo con definir el modelo de datos, la API ya rechaza correos mal formados, roles no permitidos o nombres demasiado cortos, sin que yo tenga que escribir esas validaciones a mano.
 
