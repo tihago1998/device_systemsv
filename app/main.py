@@ -1,11 +1,17 @@
 from fastapi import Depends, FastAPI, Response
-from app.routes.user_routes import router as user_router
+
+from app.database.connection import Base, engine
 from app.dependencies.user_dependencies import get_api_info
+from app.models import user_model  # noqa: F401  (registra el modelo User en Base antes de crear las tablas)
+from app.routes.user_routes import router as user_router
+
+# Crea las tablas definidas en los modelos si todavía no existen en device_systems.db
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="device_systems API",
-    description="API REST para la gestión de usuarios del sistema device_systems",
-    version="2.0.0",
+    description="API REST para la gestión de usuarios del sistema device_systems, con persistencia en base de datos mediante SQLAlchemy.",
+    version="3.0.0",
     contact={
         "name": "Santiago Varela Peña",
         "email": "santiago@example.com",
@@ -19,7 +25,7 @@ app.include_router(user_router)
 async def agregar_cabeceras(request, call_next):
     response: Response = await call_next(request)
     response.headers["X-App-Name"] = "device_systems"
-    response.headers["X-API-Version"] = "2.0.0"
+    response.headers["X-API-Version"] = "3.0.0"
     return response
 
 
@@ -33,7 +39,7 @@ def root():
     tags=["Root"],
     summary="Información de la API",
     description="Devuelve la configuración general de la API, obtenida mediante la dependencia get_api_info.",
-    response_description="Nombre y versión de la API.",
+    response_description="Nombre, versión y base de datos de la API.",
 )
 def api_info(info: dict = Depends(get_api_info)):
     return info
