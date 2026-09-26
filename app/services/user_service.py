@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth.security import get_password_hash
 from app.models.user_model import User
 
 OrderField = Literal["id", "name", "created_at"]
@@ -73,8 +74,11 @@ def list_users(
 
 
 def create_user(db: Session, user_data: dict) -> User:
+    """Crea el usuario guardando solo el hash de la contraseña (nunca el texto plano)."""
     _validar_email_unico(db, user_data["email"])
-    user = User(**user_data)
+    user_data = dict(user_data)
+    password = user_data.pop("password")
+    user = User(**user_data, hashed_password=get_password_hash(password))
     db.add(user)
     return _guardar(db, user)
 
