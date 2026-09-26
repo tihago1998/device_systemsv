@@ -1,12 +1,10 @@
 from fastapi import Depends, FastAPI, Response
 
-from app.database.connection import Base, engine
 from app.dependencies.user_dependencies import get_api_info
-from app.models import user_model  # noqa: F401  (registra el modelo User en Base antes de crear las tablas)
 from app.routes.user_routes import router as user_router
 
-# Crea las tablas definidas en los modelos si todavía no existen en device_systems.db
-Base.metadata.create_all(bind=engine)
+# Las tablas ya no se crean aquí con create_all: la estructura de la base de datos
+# se versiona con Alembic (alembic upgrade head).
 
 app = FastAPI(
     title="device_systems API",
