@@ -291,6 +291,58 @@ Pruebas mínimas de la guía, ejecutadas sobre una base de datos nueva con tres 
 
 Pruebas adicionales de error: datos inválidos (`422`), PUT sin `is_active` (`422`), PUT/PATCH/DELETE de usuario inexistente (`404`), PUT/PATCH con email de otro usuario (`400`), PATCH vacío (`400`), rol no permitido en el filtro (`400`) y `order_by` no permitido (`422`). Después de las pruebas, los datos siguen guardados en `device_systems.db`.
 
+## Evidencia de pruebas (EV09)
+
+Capturas tomadas en Swagger UI (`/docs`) con la API conectada a la base de datos SQLite.
+
+### Endpoints disponibles en Swagger UI
+
+![Swagger endpoints](images/ev09_01_swagger_endpoints.png)
+
+### 1. Crear un usuario válido → 201
+
+![POST 201](images/ev09_02_post_crear_201.png)
+
+### 2. Crear usuario con email repetido → 400
+
+![POST 400](images/ev09_03_post_email_repetido_400.png)
+
+### 3. Listar usuarios → 200
+
+![GET listar 200](images/ev09_04_get_listar_200.png)
+
+### 4. Consultar usuario por ID → 200
+
+![GET por ID 200](images/ev09_05_get_por_id_200.png)
+
+### 5. Consultar usuario inexistente → 404
+
+![GET 404](images/ev09_06_get_inexistente_404.png)
+
+### 6. Filtrar usuarios por rol → 200
+
+![Filtro rol 200](images/ev09_07_filtro_rol_200.png)
+
+### 7. Filtrar usuarios activos → 200
+
+![Filtro activos 200](images/ev09_08_filtro_activos_200.png)
+
+### 8. Actualizar usuario completo con PUT → 200
+
+![PUT 200](images/ev09_09_put_200.png)
+
+### 9. Actualizar parcialmente con PATCH → 200
+
+![PATCH 200](images/ev09_10_patch_200.png)
+
+### 10. Eliminar usuario con DELETE → 204
+
+![DELETE 204](images/ev09_11_delete_204.png)
+
+### 11. Validar que el usuario eliminado ya no exista → 404
+
+![GET eliminado 404](images/ev09_12_get_eliminado_404.png)
+
 ## Evidencia de pruebas (EV08)
 
 ### Endpoints disponibles en Swagger UI
