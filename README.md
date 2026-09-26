@@ -661,6 +661,18 @@ Pruebas adicionales de error: datos inválidos (`422`), PUT sin `is_active` (`42
 
 Capturas tomadas en Swagger UI (`/docs`) con la API conectada a la base de datos SQLite.
 
+### Estructura del proyecto
+
+Vista actual del proyecto en VS Code (incluye también los archivos agregados en EV10).
+
+![Estructura del proyecto](images/ev09_13_estructura_proyecto.png)
+
+### Base de datos generada (`device_systems.db`, tabla `users`)
+
+Usuarios guardados después de las pruebas de EV09, vistos con la extensión SQLite Viewer.
+
+![Base de datos users](images/ev09_14_base_datos_users.png)
+
 ### Endpoints disponibles en Swagger UI
 
 ![Swagger endpoints](images/ev09_01_swagger_endpoints.png)
@@ -760,6 +772,8 @@ Esta guía fue un cambio grande respecto a las anteriores. Hasta ahora los usuar
 Lo que más me costó al principio fue entender por qué tenía dos "modelos" del mismo usuario: el de SQLAlchemy y los schemas de Pydantic. Pensaba que era repetir lo mismo. Con la práctica me quedó claro que cada uno tiene su trabajo: el modelo de SQLAlchemy dice cómo se guarda el usuario en la tabla, y los schemas dicen qué datos puede mandar el cliente y qué le devuelve la API. Por ejemplo, el `id` y la fecha de creación los pone el sistema, así que no tiene sentido pedirlos al crear un usuario, pero sí mostrarlos en la respuesta.
 
 También aprendí que los errores no siempre son del código. Mientras tomaba las capturas en Swagger, un filtro por rol me devolvía "Rol no permitido" y no entendía por qué, hasta que vi en la URL que se me había colado un espacio antes de la palabra. Eso me enseñó a leer con calma la respuesta y la URL antes de pensar que la API estaba mala. Y me gustó ver que las validaciones funcionaban, porque la API rechazó el dato raro en lugar de guardarlo.
+
+Si tuviera que explicar por qué es tan importante la persistencia, diría esto: una API sin base de datos es como un cuaderno que se borra cada vez que lo cierras. Sirve para practicar, pero nadie podría usarla de verdad, porque cualquier reinicio, error o actualización del servidor haría perder todos los usuarios registrados. Con la base de datos la información queda guardada de forma segura, se puede consultar y filtrar cuando se necesite, y además la propia base de datos ayuda a cuidar que los datos sean correctos, por ejemplo no dejando repetir un correo.
 
 En general, siento que esta actividad me acercó más a cómo se trabaja en un proyecto de verdad: con base de datos, con ramas en Git para cada parte del trabajo y probando cada endpoint antes de darlo por terminado. Todavía me falta practicar más consultas y trabajar con bases de datos más grandes como MySQL o PostgreSQL, pero ya tengo una base clara para seguir avanzando.
 
