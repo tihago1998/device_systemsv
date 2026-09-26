@@ -1,0 +1,285 @@
+{
+  "info": {
+    "name": "device_systems EV11 - Seguridad",
+    "description": "Pruebas funcionales de la EV11 en el orden de la guía. Antes de empezar: 1) levantar la API con uvicorn, 2) crear el admin con python -m app.auth.create_admin y escribir su correo y contraseña en las variables admin_email y admin_password de la colección. Los tokens se guardan solos en las variables al hacer login.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "admin_email", "value": "admin@device.com" },
+    { "key": "admin_password", "value": "ESCRIBA_AQUI_LA_CONTRASEÑA_DEL_ADMIN" },
+    { "key": "user_email", "value": "pedro@device.com" },
+    { "key": "user_password", "value": "Segura2026" },
+    { "key": "support_email", "value": "ana@device.com" },
+    { "key": "support_password", "value": "Temporal2026" },
+    { "key": "token_user", "value": "" },
+    { "key": "token_support", "value": "" },
+    { "key": "token_admin", "value": "" },
+    { "key": "device_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "03 - Registro de usuario (201)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Pedro Gómez\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"confirm_password\": \"{{user_password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "04 - Registro con contraseña débil (422)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Laura Ríos\",\n  \"email\": \"laura@device.com\",\n  \"password\": \"sinmayusculas\",\n  \"confirm_password\": \"sinmayusculas\"\n}"
+        }
+      }
+    },
+    {
+      "name": "05 - Registro con email duplicado (400)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Pedro Gómez\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\",\n  \"confirm_password\": \"{{user_password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "06 - Login correcto y token (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('token_user', pm.response.json().access_token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "username", "value": "{{user_email}}" },
+            { "key": "password", "value": "{{user_password}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 - Login con contraseña incorrecta (401)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "username", "value": "{{user_email}}" },
+            { "key": "password", "value": "Incorrecta2026" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 - GET /auth/me (200)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token_user}}" }]
+        }
+      }
+    },
+    {
+      "name": "09 - Ruta protegida sin token (401)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/",
+        "auth": { "type": "noauth" }
+      }
+    },
+    {
+      "name": "10 - Token inválido (401)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "token.falso.123" }]
+        }
+      }
+    },
+    {
+      "name": "11 - Rol no permitido: user pide /loans/details (403)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/loans/details",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token_user}}" }]
+        }
+      }
+    },
+    {
+      "name": "12a - Login support (guarda token_support)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('token_support', pm.response.json().access_token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "username", "value": "{{support_email}}" },
+            { "key": "password", "value": "{{support_password}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "12b - Crear dispositivo con rol support (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  pm.collectionVariables.set('device_id', pm.response.json().id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/devices/",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token_support}}" }]
+        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Tablet Samsung Galaxy Tab\",\n  \"serial_number\": \"SAM-EV11-001\",\n  \"device_type\": \"tablet\",\n  \"brand\": \"Samsung\"\n}"
+        }
+      }
+    },
+    {
+      "name": "13 - Eliminar dispositivo con rol support (403)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/devices/{{device_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token_support}}" }]
+        }
+      }
+    },
+    {
+      "name": "15 - CORS: origen autorizado (ver pestaña Headers)",
+      "request": {
+        "method": "OPTIONS",
+        "url": "{{baseUrl}}/users/",
+        "header": [
+          { "key": "Origin", "value": "http://localhost:5173" },
+          { "key": "Access-Control-Request-Method", "value": "GET" },
+          { "key": "Access-Control-Request-Headers", "value": "authorization" }
+        ]
+      }
+    },
+    {
+      "name": "15b - CORS: origen NO autorizado (400)",
+      "request": {
+        "method": "OPTIONS",
+        "url": "{{baseUrl}}/users/",
+        "header": [
+          { "key": "Origin", "value": "http://malicioso.com" },
+          { "key": "Access-Control-Request-Method", "value": "GET" }
+        ]
+      }
+    },
+    {
+      "name": "16 - Cabeceras del middleware (ver pestaña Headers)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/info"
+      }
+    },
+    {
+      "name": "17 - Rate limiting: enviar 6 veces seguidas (429)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "username", "value": "{{user_email}}" },
+            { "key": "password", "value": "Incorrecta2026" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Extra - Login admin (guarda token_admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('token_admin', pm.response.json().access_token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "username", "value": "{{admin_email}}" },
+            { "key": "password", "value": "{{admin_password}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Extra - Eliminar dispositivo con rol admin (204)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/devices/{{device_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token_admin}}" }]
+        }
+      }
+    }
+  ]
+}
