@@ -819,75 +819,408 @@ curl -i -X OPTIONS http://localhost:8000/users/ -H "Origin: http://malicioso.com
 
 ## Evidencia de pruebas (EV11)
 
-> **Pendiente:** tomar las capturas y guardarlas en `images/` con estos nombres.
+Cada prueba muestra la petición enviada y la **respuesta real** de la API (código de estado, cabeceras relevantes y cuerpo), obtenidas ejecutando las peticiones contra `device_systems` versión 5.0.0. Los tokens se recortan porque son credenciales. Las mismas peticiones están en la colección [`postman/device_systems_EV11.postman_collection.json`](postman/device_systems_EV11.postman_collection.json) para repetirlas en Postman.
 
 ### Estructura del proyecto
 
-![Estructura del proyecto](images/ev11_01_estructura_proyecto.png)
+```
+.env.example
+alembic/versions/46413d96466f_create_devices_and_loans_tables.py
+alembic/versions/7695ce3eeaef_add_authentication_fields_to_users.py
+alembic/versions/78ad4166a2e4_create_users_table.py
+app/auth/auth_routes.py
+app/auth/auth_service.py
+app/auth/create_admin.py
+app/auth/security.py
+app/config.py
+app/database/connection.py
+app/dependencies/auth_dependency.py
+app/dependencies/database_dependency.py
+app/dependencies/device_dependencies.py
+app/dependencies/loan_dependencies.py
+app/dependencies/user_dependencies.py
+app/main.py
+app/middlewares/rate_limit.py
+app/middlewares/request_middleware.py
+app/models/device_model.py
+app/models/loan_model.py
+app/models/user_model.py
+app/routes/device_routes.py
+app/routes/loan_routes.py
+app/routes/user_routes.py
+app/schemas/auth_schema.py
+app/schemas/device_schema.py
+app/schemas/loan_schema.py
+app/schemas/user_schema.py
+app/services/device_service.py
+app/services/loan_service.py
+app/services/user_service.py
+postman/device_systems_EV11.postman_collection.json
+requirements.txt
+.env            (local, no se sube a GitHub)
+```
 
-### Migración Alembic aplicada (`alembic upgrade head`)
+### Migración Alembic aplicada
 
-![Migración aplicada](images/ev11_02_alembic_upgrade.png)
+```bash
+$ alembic history
+46413d96466f -> 7695ce3eeaef (head), add authentication fields to users
+78ad4166a2e4 -> 46413d96466f, create devices and loans tables
+<base> -> 78ad4166a2e4, create users table
 
-### Registro de usuario → 201
+$ alembic current
+7695ce3eeaef (head)
+```
 
-![Registro](images/ev11_03_register_201.png)
+### 1. Registro de usuario → 201
 
-### Registro con contraseña débil → 422
+```http
+POST /auth/register
+Content-Type: application/json
 
-![Contraseña débil](images/ev11_04_register_password_debil_422.png)
+{
+  "name": "Pedro Gómez",
+  "email": "pedro@device.com",
+  "password": "Segura2026",
+  "confirm_password": "Segura2026"
+}
+```
 
-### Registro con email duplicado → 400
+```http
+HTTP/1.1 201 Created
 
-![Email duplicado](images/ev11_05_register_email_duplicado_400.png)
+{
+  "name": "Pedro Gómez",
+  "email": "pedro@device.com",
+  "role": "user",
+  "id": 8,
+  "is_active": true,
+  "created_at": "2026-09-26T05:07:18.116850"
+}
+```
 
-### Login y token generado → 200
+### 2. Registro con contraseña débil → 422
 
-![Login](images/ev11_06_login_token_200.png)
+```http
+POST /auth/register
 
-### Login con contraseña incorrecta → 401
+{
+  "name": "Laura Ríos",
+  "email": "laura@device.com",
+  "password": "sinmayusculas",
+  "confirm_password": "sinmayusculas"
+}
+```
 
-![Login incorrecto](images/ev11_07_login_incorrecto_401.png)
+```http
+HTTP/1.1 422 Unprocessable Entity
 
-### `GET /auth/me` → 200
+{
+  "detail": [
+    {
+      "type": "value_error",
+      "loc": [
+        "body",
+        "password"
+      ],
+      "msg": "Value error, La contraseña debe tener: al menos una letra mayúscula, al menos un número",
+      "input": "sinmayusculas",
+      "ctx": {
+        "error": {}
+      }
+    }
+  ]
+}
+```
 
-![auth me](images/ev11_08_auth_me_200.png)
+### 3. Registro con email duplicado → 400
 
-### Acceso sin token → 401
+```http
+POST /auth/register
 
-![Sin token](images/ev11_09_sin_token_401.png)
+(mismo correo pedro@device.com)
+```
 
-### Acceso con token inválido → 401
+```http
+HTTP/1.1 400 Bad Request
 
-![Token inválido](images/ev11_10_token_invalido_401.png)
+{
+  "detail": "El correo ya está registrado"
+}
+```
 
-### Acceso con rol no permitido → 403
+### 4. Login correcto y token generado → 200
 
-![Rol no permitido](images/ev11_11_rol_no_permitido_403.png)
+```http
+POST /auth/login
+Content-Type: application/x-www-form-urlencoded
 
-### Crear dispositivo con rol support → 201
+username=pedro@device.com&password=Segura2026
+```
 
-![Dispositivo support](images/ev11_12_crear_dispositivo_support_201.png)
+```http
+HTTP/1.1 200 OK
 
-### Eliminar dispositivo con rol support → 403
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ...(recortado)",
+  "token_type": "bearer"
+}
+```
 
-![Eliminar support](images/ev11_13_eliminar_dispositivo_support_403.png)
+### 5. Login con contraseña incorrecta → 401
 
-### Swagger/OpenAPI con OAuth2 (botón Authorize)
+```http
+POST /auth/login
 
-![Swagger OAuth2](images/ev11_14_swagger_oauth2.png)
+username=pedro@device.com&password=Incorrecta2026
+```
 
-### Configuración CORS
+```http
+HTTP/1.1 401 Unauthorized
+www-authenticate: Bearer
 
-![CORS](images/ev11_15_cors.png)
+{
+  "detail": "Correo o contraseña incorrectos"
+}
+```
 
-### Cabeceras del middleware
+### 6. Consulta de /auth/me → 200
 
-![Cabeceras](images/ev11_16_cabeceras_middleware.png)
+```http
+GET /auth/me
+Authorization: Bearer <token de pedro>
+```
 
-### Rate limiting → 429
+```http
+HTTP/1.1 200 OK
 
-![Rate limiting](images/ev11_17_rate_limit_429.png)
+{
+  "name": "Pedro Gómez",
+  "email": "pedro@device.com",
+  "role": "user",
+  "id": 8,
+  "is_active": true,
+  "created_at": "2026-09-26T05:07:18.116850"
+}
+```
+
+### 7. Ruta protegida sin token → 401
+
+```http
+GET /users/
+```
+
+```http
+HTTP/1.1 401 Unauthorized
+www-authenticate: Bearer
+
+{
+  "detail": "Not authenticated"
+}
+```
+
+### 8. Acceso con token inválido → 401
+
+```http
+GET /users/
+Authorization: Bearer token.falso.123
+```
+
+```http
+HTTP/1.1 401 Unauthorized
+
+{
+  "detail": "No se pudo validar el token de acceso"
+}
+```
+
+### 9. Acceso con usuario sin permisos → 403
+
+```http
+GET /loans/details
+Authorization: Bearer <token de pedro, rol user>
+```
+
+```http
+HTTP/1.1 403 Forbidden
+
+{
+  "detail": "Permiso denegado: se requiere rol admin o support"
+}
+```
+
+### 10. Creación de dispositivo con rol permitido (support) → 201
+
+```http
+POST /devices/
+Authorization: Bearer <token de ana, rol support>
+
+{
+  "name": "Tablet Samsung Galaxy Tab",
+  "serial_number": "SAM-EV11-001",
+  "device_type": "tablet",
+  "brand": "Samsung"
+}
+```
+
+```http
+HTTP/1.1 201 Created
+
+{
+  "name": "Tablet Samsung Galaxy Tab",
+  "serial_number": "SAM-EV11-001",
+  "device_type": "tablet",
+  "brand": "Samsung",
+  "id": 4,
+  "is_available": true,
+  "created_at": "2026-09-26T05:07:19.163903"
+}
+```
+
+### 11. Eliminación de dispositivo con rol no permitido (support) → 403
+
+```http
+DELETE /devices/4
+Authorization: Bearer <token de ana, rol support>
+```
+
+```http
+HTTP/1.1 403 Forbidden
+
+{
+  "detail": "Permiso denegado: se requiere rol admin"
+}
+```
+
+### 12. Configuración CORS: origen autorizado → 200
+
+```http
+OPTIONS /users/
+Origin: http://localhost:5173
+Access-Control-Request-Method: GET
+Access-Control-Request-Headers: authorization
+```
+
+```http
+HTTP/1.1 200 OK
+access-control-allow-origin: http://localhost:5173
+access-control-allow-credentials: true
+access-control-allow-methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+access-control-allow-headers: authorization
+
+OK
+```
+
+### 12b. Configuración CORS: origen no autorizado → 400 (sin Access-Control-Allow-Origin)
+
+```http
+OPTIONS /users/
+Origin: http://malicioso.com
+Access-Control-Request-Method: GET
+```
+
+```http
+HTTP/1.1 400 Bad Request
+access-control-allow-credentials: true
+access-control-allow-methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
+
+Disallowed CORS origin
+```
+
+### 13. Cabeceras generadas por el middleware
+
+```http
+GET /
+X-Request-ID: 8f42e9c1
+```
+
+```http
+HTTP/1.1 200 OK
+x-request-id: 8f42e9c1
+x-process-time: 0.0019
+x-app-name: device_systems
+x-api-version: 5.0.0
+x-content-type-options: nosniff
+x-frame-options: DENY
+
+{
+  "mensaje": "Bienvenido a device_systems API"
+}
+```
+
+Formato del log que el middleware escribe en la consola de uvicorn por cada petición:
+
+```
+INFO device_systems.requests: GET / -> 200 (0.0019s) [request_id=8f42e9c1]
+```
+
+### 14. Activación de rate limiting → 429
+
+```http
+POST /auth/login   (6 veces seguidas en menos de un minuto)
+
+Códigos de las 5 primeras: 401, 401, 401, 401, 401
+Sexta petición:
+```
+
+```http
+HTTP/1.1 429 Too Many Requests
+retry-after: 60
+
+{
+  "detail": "Demasiadas solicitudes. Límite permitido: 5 per 1 minute. Intente de nuevo más tarde."
+}
+```
+
+### 15. Verificación de Swagger/OpenAPI
+
+Extracto de `GET /openapi.json` (lo que Swagger UI usa para mostrar el botón **Authorize** y los candados):
+
+```json
+{
+  "securitySchemes": {
+    "OAuth2PasswordBearer": {
+      "type": "oauth2",
+      "flows": {
+        "password": {
+          "scopes": {},
+          "tokenUrl": "auth/login"
+        }
+      }
+    }
+  },
+  "tags": [
+    "Auth",
+    "Users",
+    "Devices",
+    "Loans",
+    "Security"
+  ],
+  "rutas_protegidas (candado)": [
+    "DELETE /devices/{device_id}",
+    "DELETE /users/{user_id}",
+    "GET /auth/me",
+    "GET /devices/{device_id}/loans",
+    "GET /loans/",
+    "GET /loans/details",
+    "GET /loans/{loan_id}",
+    "GET /users/",
+    "GET /users/{user_id}",
+    "GET /users/{user_id}/devices",
+    "GET /users/{user_id}/loans",
+    "PATCH /devices/{device_id}",
+    "PATCH /loans/{loan_id}",
+    "PATCH /loans/{loan_id}/return",
+    "PATCH /users/{user_id}",
+    "POST /auth/register",
+    "POST /devices/",
+    "POST /loans/",
+    "POST /users/",
+    "PUT /devices/{device_id}",
+    "PUT /users/{user_id}"
+  ]
+}
+```
 
 ## Pruebas funcionales (EV10)
 
