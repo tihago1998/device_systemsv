@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, Response
 
 from app.dependencies.user_dependencies import get_api_info
+from app.routes.device_routes import router as device_router
 from app.routes.user_routes import router as user_router
 
 # Las tablas ya no se crean aquí con create_all: la estructura de la base de datos
@@ -17,6 +18,7 @@ app = FastAPI(
 )
 
 app.include_router(user_router)
+app.include_router(device_router)
 
 
 @app.middleware("http")
