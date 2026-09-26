@@ -819,9 +819,14 @@ curl -i -X OPTIONS http://localhost:8000/users/ -H "Origin: http://malicioso.com
 
 ## Evidencia de pruebas (EV11)
 
-Cada prueba muestra la petición enviada y la **respuesta real** de la API (código de estado, cabeceras relevantes y cuerpo), obtenidas ejecutando las peticiones contra `device_systems` versión 5.0.0. Los tokens se recortan porque son credenciales. Las mismas peticiones están en la colección [`postman/device_systems_EV11.postman_collection.json`](postman/device_systems_EV11.postman_collection.json) para repetirlas en Postman.
+Capturas de las pruebas ejecutadas en **Swagger UI** (`/docs`) contra `device_systems` versión 5.0.0. Cada captura muestra la petición (curl), el código de estado, el cuerpo y las cabeceras de la respuesta; debajo de cada una se puede desplegar la misma petición y respuesta en texto. Las pruebas también están en la colección [`postman/device_systems_EV11.postman_collection.json`](postman/device_systems_EV11.postman_collection.json) para repetirlas en Postman.
 
 ### Estructura del proyecto
+
+![Estructura del proyecto](images/ev11_01_estructura_proyecto.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```
 .env.example
@@ -860,7 +865,14 @@ requirements.txt
 .env            (local, no se sube a GitHub)
 ```
 
+</details>
+
 ### Migración Alembic aplicada
+
+![Migración Alembic aplicada](images/ev11_02_alembic_upgrade.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```bash
 $ alembic history
@@ -872,7 +884,14 @@ $ alembic current
 7695ce3eeaef (head)
 ```
 
+</details>
+
 ### 1. Registro de usuario → 201
+
+![1. Registro de usuario → 201](images/ev11_03_register_201.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /auth/register
@@ -899,7 +918,14 @@ HTTP/1.1 201 Created
 }
 ```
 
+</details>
+
 ### 2. Registro con contraseña débil → 422
+
+![2. Registro con contraseña débil → 422](images/ev11_04_register_password_debil_422.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /auth/register
@@ -933,7 +959,14 @@ HTTP/1.1 422 Unprocessable Entity
 }
 ```
 
+</details>
+
 ### 3. Registro con email duplicado → 400
+
+![3. Registro con email duplicado → 400](images/ev11_05_register_email_duplicado_400.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /auth/register
@@ -949,7 +982,14 @@ HTTP/1.1 400 Bad Request
 }
 ```
 
+</details>
+
 ### 4. Login correcto y token generado → 200
+
+![4. Login correcto y token generado → 200](images/ev11_06_login_token_200.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /auth/login
@@ -967,7 +1007,14 @@ HTTP/1.1 200 OK
 }
 ```
 
+</details>
+
 ### 5. Login con contraseña incorrecta → 401
+
+![5. Login con contraseña incorrecta → 401](images/ev11_07_login_incorrecto_401.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /auth/login
@@ -984,7 +1031,14 @@ www-authenticate: Bearer
 }
 ```
 
+</details>
+
 ### 6. Consulta de /auth/me → 200
+
+![6. Consulta de /auth/me → 200](images/ev11_08_auth_me_200.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 GET /auth/me
@@ -1004,7 +1058,14 @@ HTTP/1.1 200 OK
 }
 ```
 
+</details>
+
 ### 7. Ruta protegida sin token → 401
+
+![7. Ruta protegida sin token → 401](images/ev11_09_sin_token_401.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 GET /users/
@@ -1019,7 +1080,14 @@ www-authenticate: Bearer
 }
 ```
 
+</details>
+
 ### 8. Acceso con token inválido → 401
+
+![8. Acceso con token inválido → 401](images/ev11_10_token_invalido_401.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 GET /users/
@@ -1034,7 +1102,14 @@ HTTP/1.1 401 Unauthorized
 }
 ```
 
+</details>
+
 ### 9. Acceso con usuario sin permisos → 403
+
+![9. Acceso con usuario sin permisos → 403](images/ev11_11_rol_no_permitido_403.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 GET /loans/details
@@ -1049,7 +1124,14 @@ HTTP/1.1 403 Forbidden
 }
 ```
 
+</details>
+
 ### 10. Creación de dispositivo con rol permitido (support) → 201
+
+![10. Creación de dispositivo con rol permitido (support) → 201](images/ev11_12_crear_dispositivo_support_201.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /devices/
@@ -1077,7 +1159,14 @@ HTTP/1.1 201 Created
 }
 ```
 
+</details>
+
 ### 11. Eliminación de dispositivo con rol no permitido (support) → 403
+
+![11. Eliminación de dispositivo con rol no permitido (support) → 403](images/ev11_13_eliminar_dispositivo_support_403.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 DELETE /devices/4
@@ -1092,7 +1181,16 @@ HTTP/1.1 403 Forbidden
 }
 ```
 
+</details>
+
 ### 12. Configuración CORS: origen autorizado → 200
+
+Página de prueba servida en `http://localhost:5173` (origen autorizado) que hace `fetch` a la API: el navegador entrega la respuesta y el frontend puede leer la cabecera expuesta `X-Request-ID`.
+
+![12. Configuración CORS: origen autorizado → 200](images/ev11_15_cors_permitido.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 OPTIONS /users/
@@ -1111,7 +1209,16 @@ access-control-allow-headers: authorization
 OK
 ```
 
+</details>
+
 ### 12b. Configuración CORS: origen no autorizado → 400 (sin Access-Control-Allow-Origin)
+
+La misma página servida en `http://localhost:5500` (origen **no** autorizado): el navegador bloquea la respuesta porque la API no devuelve `Access-Control-Allow-Origin` para ese origen.
+
+![12b. Configuración CORS: origen no autorizado → 400 (sin Access-Control-Allow-Origin)](images/ev11_15b_cors_bloqueado.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 OPTIONS /users/
@@ -1127,7 +1234,14 @@ access-control-allow-methods: DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT
 Disallowed CORS origin
 ```
 
+</details>
+
 ### 13. Cabeceras generadas por el middleware
+
+![13. Cabeceras generadas por el middleware](images/ev11_16_cabeceras_middleware.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 GET /
@@ -1154,7 +1268,14 @@ Formato del log que el middleware escribe en la consola de uvicorn por cada peti
 INFO device_systems.requests: GET / -> 200 (0.0019s) [request_id=8f42e9c1]
 ```
 
+</details>
+
 ### 14. Activación de rate limiting → 429
+
+![14. Activación de rate limiting → 429](images/ev11_17_rate_limit_429.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 ```http
 POST /auth/login   (6 veces seguidas en menos de un minuto)
@@ -1172,7 +1293,18 @@ retry-after: 60
 }
 ```
 
+</details>
+
 ### 15. Verificación de Swagger/OpenAPI
+
+Swagger UI muestra el botón **Authorize**, los candados en las rutas protegidas y los tags Auth, Users, Devices, Loans y Security. Al autorizarse con correo y contraseña, Swagger obtiene el token de `/auth/login` y lo envía en cada petición:
+
+![15. Verificación de Swagger/OpenAPI](images/ev11_14_swagger_oauth2.png)
+
+![15. Verificación de Swagger/OpenAPI](images/ev11_14b_swagger_authorize.png)
+
+<details>
+<summary>Petición y respuesta en texto</summary>
 
 Extracto de `GET /openapi.json` (lo que Swagger UI usa para mostrar el botón **Authorize** y los candados):
 
@@ -1221,6 +1353,8 @@ Extracto de `GET /openapi.json` (lo que Swagger UI usa para mostrar el botón **
   ]
 }
 ```
+
+</details>
 
 ## Pruebas funcionales (EV10)
 
