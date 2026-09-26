@@ -1,6 +1,7 @@
 from typing import Literal, Optional
 
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -57,12 +58,16 @@ def list_users(
     order: OrderDirection = "asc",
     skip: int = 0,
     limit: int = 100,
+    search: Optional[str] = None,
 ) -> list[User]:
     query = db.query(User)
     if role is not None:
         query = filter_by_role(query, role)
     if is_active is not None:
         query = filter_by_status(query, is_active)
+    if search:
+        patron = f"%{search.strip()}%"
+        query = query.filter(or_(User.name.ilike(patron), User.email.ilike(patron)))
     query = order_users(query, order_by, order)
     return query.offset(skip).limit(limit).all()
 
@@ -94,5 +99,11 @@ def update_user_partial(db: Session, user: User, fields: dict) -> User:
 
 
 def delete_user(db: Session, user: User) -> None:
+    """Elimina un usuario; si tiene préstamos registrados se conserva el historial (409)."""
+    if user.loans:
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar un usuario con préstamos registrados (se conserva el historial)",
+        )
     db.delete(user)
     db.commit()

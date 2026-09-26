@@ -7,7 +7,8 @@ from app.dependencies.database_dependency import get_db
 from app.dependencies.device_dependencies import get_device_or_404
 from app.models.device_model import Device
 from app.schemas.device_schema import DeviceCreate, DevicePatch, DeviceResponse, DeviceType, DeviceUpdate
-from app.services import device_service
+from app.schemas.loan_schema import LoanDetailResponse, LoanStatus
+from app.services import device_service, loan_service
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
@@ -50,6 +51,22 @@ def list_devices(
 )
 def get_device(device: Device = Depends(get_device_or_404)):
     return device
+
+
+@router.get(
+    "/{device_id}/loans",
+    response_model=List[LoanDetailResponse],
+    summary="Historial de préstamos de un dispositivo",
+    description="Todos los préstamos en los que ha participado el dispositivo, con los datos del usuario (join).",
+    response_description="Historial de préstamos del dispositivo, del más reciente al más antiguo.",
+    responses=ERROR_404,
+)
+def get_device_loans(
+    device: Device = Depends(get_device_or_404),
+    status: Optional[LoanStatus] = Query(None, description="Filtrar por estado del préstamo"),
+    db: Session = Depends(get_db),
+):
+    return loan_service.list_loans(db, device_id=device.id, status=status)
 
 
 @router.post(
