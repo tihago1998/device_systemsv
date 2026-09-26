@@ -377,6 +377,16 @@ Capturas tomadas en Swagger UI (`/docs`) con la API conectada a la base de datos
 - PUT de usuario inexistente → 404
   ![PUT 404](images/12_put_usuario_inexistente_404.png)
 
+## Reflexión personal (EV09)
+
+Esta guía fue un cambio grande respecto a las anteriores. Hasta ahora los usuarios vivían en una lista dentro del código, y cada vez que reiniciaba el servidor todo volvía a como estaba al principio. Al conectar la API con una base de datos, lo primero que me llamó la atención fue crear un usuario, apagar el servidor, volver a prenderlo… y ver que el usuario seguía ahí. Parece algo sencillo, pero ahí entendí la diferencia entre una API de práctica y una que de verdad podría usarse en un proyecto real.
+
+Lo que más me costó al principio fue entender por qué tenía dos "modelos" del mismo usuario: el de SQLAlchemy y los schemas de Pydantic. Pensaba que era repetir lo mismo. Con la práctica me quedó claro que cada uno tiene su trabajo: el modelo de SQLAlchemy dice cómo se guarda el usuario en la tabla, y los schemas dicen qué datos puede mandar el cliente y qué le devuelve la API. Por ejemplo, el `id` y la fecha de creación los pone el sistema, así que no tiene sentido pedirlos al crear un usuario, pero sí mostrarlos en la respuesta.
+
+También aprendí que los errores no siempre son del código. Mientras tomaba las capturas en Swagger, un filtro por rol me devolvía "Rol no permitido" y no entendía por qué, hasta que vi en la URL que se me había colado un espacio antes de la palabra. Eso me enseñó a leer con calma la respuesta y la URL antes de pensar que la API estaba mala. Y me gustó ver que las validaciones funcionaban, porque la API rechazó el dato raro en lugar de guardarlo.
+
+En general, siento que esta actividad me acercó más a cómo se trabaja en un proyecto de verdad: con base de datos, con ramas en Git para cada parte del trabajo y probando cada endpoint antes de darlo por terminado. Todavía me falta practicar más consultas y trabajar con bases de datos más grandes como MySQL o PostgreSQL, pero ya tengo una base clara para seguir avanzando.
+
 ## Reflexión personal (EV08)
 
 Desarrollar `device_systems` con FastAPI me permitió entender por qué este framework se ha vuelto tan popular para construir APIs REST en Python. La validación automática con Pydantic fue lo que más me sorprendió: solo con definir el modelo de datos, la API ya rechaza correos mal formados, roles no permitidos o nombres demasiado cortos, sin que yo tenga que escribir esas validaciones a mano.
