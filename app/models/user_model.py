@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.database.connection import Base
 
@@ -24,3 +25,6 @@ class User(Base):
     role = Column(String(20), nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=utc_now)
+
+    # One-to-Many: un usuario puede tener muchos préstamos
+    loans = relationship("Loan", back_populates="user")

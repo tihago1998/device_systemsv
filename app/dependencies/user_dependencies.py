@@ -32,7 +32,7 @@ def validar_rol(
 
 def get_api_info() -> dict:
     """Configuración general de la API, disponible como dependencia."""
-    return {"app_name": "device_systems", "version": "3.0.0", "database": "SQLite"}
+    return {"app_name": "device_systems", "version": "4.0.0", "database": "SQLite"}
 
 
 def verificar_autenticacion(x_token: str = Header(None)) -> bool:

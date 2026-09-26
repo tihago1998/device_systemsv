@@ -5,6 +5,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 Role = Literal["admin", "support", "user"]
 
+USER_EXAMPLE = {"name": "Ana Pérez", "email": "ana@sena.edu.co", "role": "user", "is_active": True}
+
 
 class UserBase(BaseModel):
     name: str = Field(..., min_length=3, max_length=100, description="Nombre completo del usuario")
@@ -16,10 +18,14 @@ class UserCreate(UserBase):
     """Entrada para crear un usuario (POST). is_active es opcional y por defecto es True."""
     is_active: bool = True
 
+    model_config = ConfigDict(json_schema_extra={"examples": [USER_EXAMPLE]})
+
 
 class UserUpdate(UserBase):
     """Entrada para actualizar completamente un usuario (PUT): todos los campos son obligatorios."""
     is_active: bool
+
+    model_config = ConfigDict(json_schema_extra={"examples": [{**USER_EXAMPLE, "role": "support"}]})
 
 
 class UserPatch(BaseModel):
@@ -29,6 +35,8 @@ class UserPatch(BaseModel):
     role: Optional[Role] = None
     is_active: Optional[bool] = None
 
+    model_config = ConfigDict(json_schema_extra={"examples": [{"role": "support"}]})
+
 
 class UserResponse(UserBase):
     """Salida: controla lo que la API expone de un usuario de la base de datos."""
@@ -37,4 +45,7 @@ class UserResponse(UserBase):
     created_at: datetime
 
     # Permite construir el schema directamente desde el objeto SQLAlchemy
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={"examples": [{"id": 1, **USER_EXAMPLE, "created_at": "2026-09-26T10:00:00"}]},
+    )
