@@ -3,6 +3,7 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.dependencies.auth_dependency import ROLE_ERRORS, require_admin, require_admin_or_support
 from app.dependencies.database_dependency import get_db
 from app.dependencies.device_dependencies import get_device_or_404
 from app.models.device_model import Device
@@ -10,6 +11,7 @@ from app.schemas.device_schema import DeviceCreate, DevicePatch, DeviceResponse,
 from app.schemas.loan_schema import LoanDetailResponse, LoanStatus
 from app.services import device_service, loan_service
 
+# Consultar el catálogo de dispositivos es público; crear, modificar y eliminar requiere rol (ver cada ruta)
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
 ERROR_404 = {404: {"description": "Dispositivo no encontrado"}}
@@ -57,9 +59,13 @@ def get_device(device: Device = Depends(get_device_or_404)):
     "/{device_id}/loans",
     response_model=List[LoanDetailResponse],
     summary="Historial de préstamos de un dispositivo",
-    description="Todos los préstamos en los que ha participado el dispositivo, con los datos del usuario (join).",
+    description=(
+        "Todos los préstamos en los que ha participado el dispositivo, con los datos del usuario (join). "
+        "Solo admin o support."
+    ),
     response_description="Historial de préstamos del dispositivo, del más reciente al más antiguo.",
-    responses=ERROR_404,
+    responses={**ERROR_404, **ROLE_ERRORS},
+    dependencies=[Depends(require_admin_or_support)],
 )
 def get_device_loans(
     device: Device = Depends(get_device_or_404),
@@ -74,9 +80,13 @@ def get_device_loans(
     response_model=DeviceResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Registrar dispositivo",
-    description="Registra un nuevo equipo tecnológico, validando que el número de serie no esté duplicado.",
+    description=(
+        "Registra un nuevo equipo tecnológico, validando que el número de serie no esté duplicado. "
+        "Solo admin o support."
+    ),
     response_description="Dispositivo creado con su ID y fecha de creación.",
-    responses=ERROR_400_SERIAL,
+    responses={**ERROR_400_SERIAL, **ROLE_ERRORS},
+    dependencies=[Depends(require_admin_or_support)],
 )
 def create_device(device: DeviceCreate, db: Session = Depends(get_db)):
     return device_service.create_device(db, device.model_dump())
@@ -86,13 +96,15 @@ def create_device(device: DeviceCreate, db: Session = Depends(get_db)):
     "/{device_id}",
     response_model=DeviceResponse,
     summary="Actualizar dispositivo (completo)",
-    description="Reemplaza todos los datos de un dispositivo existente.",
+    description="Reemplaza todos los datos de un dispositivo existente. Solo admin o support.",
     response_description="Dispositivo con los datos actualizados.",
     responses={
         **ERROR_404,
         **ERROR_400_SERIAL,
         409: {"description": "No se puede marcar como disponible un equipo con préstamo activo"},
+        **ROLE_ERRORS,
     },
+    dependencies=[Depends(require_admin_or_support)],
 )
 def update_device(
     device: DeviceUpdate,
@@ -106,13 +118,15 @@ def update_device(
     "/{device_id}",
     response_model=DeviceResponse,
     summary="Actualizar dispositivo (parcial)",
-    description="Actualiza solo los campos enviados. Si no se envía ningún campo responde 400.",
+    description="Actualiza solo los campos enviados. Si no se envía ningún campo responde 400. Solo admin o support.",
     response_description="Dispositivo con los campos actualizados.",
     responses={
         **ERROR_404,
         400: {"description": "Serial duplicado o no se enviaron campos"},
         409: {"description": "No se puede marcar como disponible un equipo con préstamo activo"},
+        **ROLE_ERRORS,
     },
+    dependencies=[Depends(require_admin_or_support)],
 )
 def patch_device(
     device: DevicePatch,
@@ -128,9 +142,10 @@ def patch_device(
     "/{device_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Eliminar dispositivo",
-    description="Elimina un dispositivo que no tenga préstamos registrados.",
+    description="Elimina un dispositivo que no tenga préstamos registrados. Solo admin.",
     response_description="Dispositivo eliminado exitosamente (sin contenido de respuesta).",
-    responses={**ERROR_404, 409: {"description": "El dispositivo tiene préstamos registrados"}},
+    responses={**ERROR_404, 409: {"description": "El dispositivo tiene préstamos registrados"}, **ROLE_ERRORS},
+    dependencies=[Depends(require_admin)],
 )
 def remove_device(device: Device = Depends(get_device_or_404), db: Session = Depends(get_db)):
     device_service.delete_device(db, device)

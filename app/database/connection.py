@@ -1,10 +1,12 @@
 import os
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 # Base de datos SQLite para desarrollo: se crea el archivo device_systems.db en la raíz del proyecto.
-# Se puede cambiar con la variable de entorno DATABASE_URL (la usa también Alembic en alembic/env.py).
+# Se puede cambiar con la variable de entorno DATABASE_URL o en el archivo .env (la usa también Alembic).
+load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./device_systems.db")
 
 # check_same_thread=False: FastAPI puede usar la conexión desde distintos hilos de una misma petición

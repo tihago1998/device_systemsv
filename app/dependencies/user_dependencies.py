@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Header, Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies.database_dependency import get_db
@@ -28,15 +28,3 @@ def validar_rol(
             detail=f"Rol no permitido. Debe ser uno de: {', '.join(sorted(ROLES_PERMITIDOS))}"
         )
     return role
-
-
-def get_api_info() -> dict:
-    """Configuración general de la API, disponible como dependencia."""
-    return {"app_name": "device_systems", "version": "4.0.0", "database": "SQLite"}
-
-
-def verificar_autenticacion(x_token: str = Header(None)) -> bool:
-    """Simula autenticación básica mediante una cabecera personalizada."""
-    if x_token != "secreto123":
-        raise HTTPException(status_code=401, detail="Token de autenticación inválido o ausente")
-    return True
